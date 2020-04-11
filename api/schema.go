@@ -15,6 +15,8 @@ func makeQuery() *graphql.Object {
 	}})
 }
 
+// MakeSchema creates the YourBCABus API
+// GraphQL schema.
 func MakeSchema() (graphql.Schema, error) {
 	return graphql.NewSchema(graphql.SchemaConfig{Query: makeQuery()})
 }

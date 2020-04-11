@@ -5,9 +5,12 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
 
 	"github.com/YourBCABus/bcabusd/api"
+	"github.com/YourBCABus/bcabusd/auth"
+	"github.com/YourBCABus/bcabusd/legacy"
 )
 
 func index(w http.ResponseWriter, req *http.Request) {
@@ -19,6 +22,11 @@ func index(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "Hello, world!\n")
 }
 
+func teapot(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(http.StatusTeapot)
+	fmt.Fprintf(w, "I'm a teapot")
+}
+
 func main() {
 	schema, err := api.MakeSchema()
 	if err != nil {
@@ -26,11 +34,21 @@ func main() {
 	}
 
 	fmt.Println("Starting server...")
-	http.HandleFunc("/", index)
-	http.Handle("/api", handler.New(&handler.Config{
+
+	router := mux.NewRouter()
+
+	authRouter := router.PathPrefix("/auth").Subrouter()
+	auth.ApplyRoutes(authRouter)
+
+	router.Handle("/api", handler.New(&handler.Config{
 		Schema:   &schema,
 		Pretty:   true,
 		GraphiQL: true,
 	}))
+	router.PathPrefix("/schools").Handler(legacy.Handler())
+	router.HandleFunc("/teapot", teapot)
+	router.HandleFunc("/", index)
+
+	http.Handle("/", router)
 	http.ListenAndServe(":3000", nil)
 }
