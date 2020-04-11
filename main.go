@@ -7,9 +7,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
+	"github.com/joho/godotenv"
 
 	"github.com/YourBCABus/bcabusd/api"
 	"github.com/YourBCABus/bcabusd/auth"
+	"github.com/YourBCABus/bcabusd/db"
 	"github.com/YourBCABus/bcabusd/legacy"
 )
 
@@ -28,9 +30,19 @@ func teapot(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	schema, err := api.MakeSchema()
+	err := godotenv.Load()
 	if err != nil {
-		log.Fatalf("failed to create schema: %v", err)
+		fmt.Printf("Error loading .env: %v\n", err)
+	}
+
+	db, err := db.Connect()
+	if err != nil {
+		log.Fatalf("Failed to connect to db: %v\n", err)
+	}
+
+	schema, err := api.MakeSchema(db)
+	if err != nil {
+		log.Fatalf("failed to create schema: %v\n", err)
 	}
 
 	fmt.Println("Starting server...")
