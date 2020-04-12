@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
@@ -50,7 +51,15 @@ func main() {
 	router := mux.NewRouter()
 
 	authRouter := router.PathPrefix("/auth").Subrouter()
-	auth.ApplyRoutes(authRouter)
+	auth.ApplyRoutes(authRouter, db, auth.Config{
+		Providers: map[string]auth.OAuthProvider{
+			"google": auth.GoogleProvider{
+				ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+				ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+				RedirectURI: os.Getenv("GOOGLE_REDIRECT_URI"),
+			},
+		},
+	})
 
 	router.Handle("/api", handler.New(&handler.Config{
 		Schema:   &schema,
