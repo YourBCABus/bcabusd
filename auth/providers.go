@@ -4,6 +4,7 @@ import (
 	"github.com/go-pg/pg/v9"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/endpoints"
 )
 
 // OAuthProvider defines methods for authenticating a user
@@ -36,5 +37,28 @@ func (p GoogleProvider) Config() (*oauth2.Config, error) {
 }
 
 func (p GoogleProvider) Authenticate(token *oauth2.Token, db *pg.DB) {
+
+}
+
+// GitHubProvider is an OAuthProvider that authenticates users
+// with GitHub.
+type GitHubProvider struct {
+	ClientID string
+	ClientSecret string
+	RedirectURI string
+}
+
+// Config returns an OAuth2 configuration for GitHub.
+func (p GitHubProvider) Config() (*oauth2.Config, error) {
+	return &oauth2.Config{
+		ClientID: p.ClientID,
+		ClientSecret: p.ClientSecret,
+		RedirectURL: p.RedirectURI,
+		Scopes: []string{"read:user", "user:email"},
+		Endpoint: endpoints.GitHub,
+	}, nil
+}
+
+func (p GitHubProvider) Authenticate(token *oauth2.Token, db *pg.DB) {
 
 }
