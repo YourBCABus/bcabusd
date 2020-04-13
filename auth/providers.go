@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"github.com/go-pg/pg/v9"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
 type OAuthProvider interface {
 	Config() (*oauth2.Config, error)
+	Authenticate(token *oauth2.Token, db *pg.DB)
 }
 
 type GoogleProvider struct {
@@ -23,4 +25,8 @@ func (p GoogleProvider) Config() (*oauth2.Config, error) {
 		Scopes: []string{"profile", "email"},
 		Endpoint: google.Endpoint,
 	}, nil
+}
+
+func (p GoogleProvider) Authenticate(token *oauth2.Token, db *pg.DB) {
+
 }
