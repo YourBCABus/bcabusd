@@ -9,24 +9,35 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Base64Encoding represents the base 64 encoding used for auth tokens.
 var Base64Encoding = base64.StdEncoding
 
+// Error is a type of error that encapsulates an HTTP status code and an error message.
 type Error struct {
-	status int
-	message string
+	Status int
+	Message string
 }
 
 func (e Error) Error() string {
-	return e.message
+	return e.Message
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Auth things")
 }
 
+// Config contains variables for configuring authentication routes.
 type Config struct {
+	// Providers is a map containing OAuthProviders to use.
 	Providers map[string]OAuthProvider
+
+	// StateMaxAge is the MaxAge of an OAuth state cookie.
+	// The default is 3600 (1 hour).
 	StateMaxAge int
+
+	// StateLength is the length of the OAuth state cookie, in bytes.
+	// The default is 12 bytes; set this to a negative value to disable
+	// state checking.
 	StateLength int
 }
 
