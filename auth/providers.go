@@ -17,6 +17,8 @@ type OAuthProvider interface {
 	// and retrieving tokens.
 	Config(context context.Context) (*oauth2.Config, error)
 
+	// Authenticate returns a matching user ID for a given OAuth2 token,
+	// creating a new user as needed.
 	Authenticate(context context.Context, token *oauth2.Token, db *pg.DB, createNewUser func(db.Meta) (string, error)) (string, error)
 }
 
@@ -56,6 +58,8 @@ func (p *GoogleProvider) Config(ctx context.Context) (*oauth2.Config, error) {
 	}, nil
 }
 
+// Authenticate returns a matching user ID for a given Google OAuth2 token,
+// creating a new user as needed.
 func (p *GoogleProvider) Authenticate(ctx context.Context, token *oauth2.Token, db *pg.DB, createNewUser func(db.Meta) (string, error)) (string, error) {
 	if err := p.setupProvider(ctx); err != nil {
 		return "", err
