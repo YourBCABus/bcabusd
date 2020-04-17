@@ -96,5 +96,5 @@ func (h callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{Name: h.jwtCookieName, Value: userToken, Path: "/auth", MaxAge: h.jwtCookieMaxAge})
-	fmt.Fprintf(w, "Done!")
+	fmt.Fprintf(w, "Done! Logged in as user %v", id)
 }
