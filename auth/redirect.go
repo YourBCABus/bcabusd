@@ -7,7 +7,7 @@ import (
 )
 
 type redirectHandler struct {
-	providers map[string]OAuthProvider
+	providers   map[string]OAuthProvider
 	stateMaxAge int
 	stateLength int
 }
@@ -18,7 +18,7 @@ func (h redirectHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	config, err := provider.Config()
+	config, err := provider.Config(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -1,9 +1,13 @@
 package auth
 
 import (
+	"context"
+
+	"github.com/coreos/go-oidc"
 	"github.com/go-pg/pg/v9"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+
+	"github.com/YourBCABus/bcabusd/db"
 )
 
 // OAuthProvider defines methods for authenticating a user
@@ -11,30 +15,52 @@ import (
 type OAuthProvider interface {
 	// Config returns an OAuth2 configuration suitable for requesting
 	// and retrieving tokens.
-	Config() (*oauth2.Config, error)
+	Config(context context.Context) (*oauth2.Config, error)
 
-	Authenticate(token *oauth2.Token, db *pg.DB)
+	Authenticate(context context.Context, token *oauth2.Token, db *pg.DB, createNewUser func(db.Meta) (string, error)) (string, error)
 }
 
 // GoogleProvider is an OAuthProvider that authenticates users
 // with Google.
 type GoogleProvider struct {
-	ClientID string
+	ClientID     string
 	ClientSecret string
-	RedirectURI string
+	RedirectURI  string
+	oidcProvider *oidc.Provider
+}
+
+func (p *GoogleProvider) setupProvider(ctx context.Context) error {
+	if p.oidcProvider == nil {
+		var err error
+		p.oidcProvider, err = oidc.NewProvider(ctx, "https://accounts.google.com")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Config returns an OAuth2 configuration for Google.
-func (p GoogleProvider) Config() (*oauth2.Config, error) {
+func (p *GoogleProvider) Config(ctx context.Context) (*oauth2.Config, error) {
+	if err := p.setupProvider(ctx); err != nil {
+		return nil, err
+	}
+
 	return &oauth2.Config{
-		ClientID: p.ClientID,
+		ClientID:     p.ClientID,
 		ClientSecret: p.ClientSecret,
-		RedirectURL: p.RedirectURI,
-		Scopes: []string{"profile", "email"},
-		Endpoint: google.Endpoint,
+		RedirectURL:  p.RedirectURI,
+		Scopes:       []string{"profile", "email"},
+		Endpoint:     p.oidcProvider.Endpoint(),
 	}, nil
 }
 
-func (p GoogleProvider) Authenticate(token *oauth2.Token, db *pg.DB) {
+func (p *GoogleProvider) Authenticate(ctx context.Context, token *oauth2.Token, db *pg.DB, createNewUser func(db.Meta) (string, error)) (string, error) {
+	if err := p.setupProvider(ctx); err != nil {
+		return "", err
+	}
 
+	id, err := createNewUser(map[string]interface{}{"Hello": "World"})
+	return id, err
 }

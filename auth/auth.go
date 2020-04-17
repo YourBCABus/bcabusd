@@ -14,7 +14,7 @@ var Base64Encoding = base64.StdEncoding
 
 // Error is a type of error that encapsulates an HTTP status code and an error message.
 type Error struct {
-	Status int
+	Status  int
 	Message string
 }
 
@@ -39,6 +39,12 @@ type Config struct {
 	// The default is 12 bytes; set this to a negative value to disable
 	// state checking.
 	StateLength int
+
+	UserTokenLength int
+
+	JWTSecret []byte
+
+	JWTExpiresIn int64
 }
 
 func providerFor(w http.ResponseWriter, r *http.Request, providers map[string]OAuthProvider) (OAuthProvider, string) {
@@ -65,7 +71,19 @@ func stateCookieName(providerName string) string {
 // ApplyRoutes applies authentication-related routes
 // to a given router using a given database.
 func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
+	audience := "bcabusd-internal"
+	jwtCookieName := "bcabusdauthtoken"
+
 	router.Handle("/redirect", redirectHandler{providers: config.Providers, stateMaxAge: config.StateMaxAge, stateLength: config.StateLength})
-	router.Handle("/callback", callbackHandler{checkState: config.StateLength >= 0, providers: config.Providers})
+	router.Handle("/callback", callbackHandler{
+		checkState:      config.StateLength >= 0,
+		providers:       config.Providers,
+		userTokenLength: config.UserTokenLength,
+		db:              db,
+		jwtSecret:       config.JWTSecret,
+		jwtAudience:     audience,
+		jwtExpiresIn:    config.JWTExpiresIn,
+		jwtCookieName:   jwtCookieName,
+	})
 	router.HandleFunc("", index)
 }

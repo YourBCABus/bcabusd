@@ -40,6 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to connect to db: %v\n", err)
 	}
+	defer db.Close()
 
 	schema, err := api.MakeSchema(db)
 	if err != nil {
@@ -53,12 +54,13 @@ func main() {
 	authRouter := router.PathPrefix("/auth").Subrouter()
 	auth.ApplyRoutes(authRouter, db, auth.Config{
 		Providers: map[string]auth.OAuthProvider{
-			"google": auth.GoogleProvider{
-				ClientID: os.Getenv("GOOGLE_CLIENT_ID"),
+			"google": &auth.GoogleProvider{
+				ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 				ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-				RedirectURI: os.Getenv("GOOGLE_REDIRECT_URI"),
+				RedirectURI:  os.Getenv("GOOGLE_REDIRECT_URI"),
 			},
 		},
+		JWTSecret: []byte(os.Getenv("JWT_SECRET")),
 	})
 
 	router.Handle("/api", handler.New(&handler.Config{
