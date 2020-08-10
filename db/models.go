@@ -21,3 +21,13 @@ type AuthProvider struct {
 	Subject  string
 	Meta     Meta
 }
+
+type AuthClient struct {
+	tableName struct{} `pg:"authclients"`
+
+	ClientID     string   `pg:"type:uuid,unique,pk,notnull,default:gen_random_uuid()"`
+	ClientSecret []byte   `pg:",notnull"`
+	GrantTypes   []string `pg:"type:granttype[],array,notnull"`
+	RedirectURIs []string `pg:",array"`
+	Meta         Meta
+}
