@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
 	"github.com/joho/godotenv"
+	"github.com/ory/hydra-client-go/client"
 
 	"github.com/YourBCABus/bcabusd/api"
 	"github.com/YourBCABus/bcabusd/auth"
@@ -51,6 +53,11 @@ func main() {
 
 	router := mux.NewRouter()
 
+	adminURL, err := url.Parse(os.Getenv("HYDRA_URL"))
+	if err != nil {
+		log.Fatalf("failed to parse Hydra URL: %v\n", err)
+	}
+
 	authRouter := router.PathPrefix("/auth").Subrouter()
 	auth.ApplyRoutes(authRouter, db, auth.Config{
 		Providers: map[string]auth.OAuthProvider{
@@ -60,7 +67,8 @@ func main() {
 				RedirectURI:  os.Getenv("GOOGLE_REDIRECT_URI"),
 			},
 		},
-		JWTSecret: []byte(os.Getenv("JWT_SECRET")),
+		JWTSecret:   []byte(os.Getenv("JWT_SECRET")),
+		HydraClient: client.NewHTTPClientWithConfig(nil, &client.TransportConfig{Schemes: []string{adminURL.Scheme}, Host: adminURL.Host, BasePath: adminURL.Path}),
 	})
 
 	router.Handle("/api", handler.New(&handler.Config{

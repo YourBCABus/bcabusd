@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-pg/pg/v9"
 	"github.com/gorilla/mux"
+	"github.com/ory/hydra-client-go/client"
 )
 
 // Base64Encoding represents the base 64 encoding used for auth tokens.
@@ -45,6 +46,8 @@ type Config struct {
 	JWTSecret []byte
 
 	JWTExpiresIn int64
+
+	HydraClient *client.OryHydra
 }
 
 func providerFor(w http.ResponseWriter, r *http.Request, providers map[string]OAuthProvider) (OAuthProvider, string) {
@@ -85,5 +88,6 @@ func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
 		jwtExpiresIn:    config.JWTExpiresIn,
 		jwtCookieName:   jwtCookieName,
 	})
+	router.Handle("/login", loginHandler{config.HydraClient.Admin})
 	router.HandleFunc("", index)
 }
