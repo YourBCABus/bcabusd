@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"fmt"
+	"html/template"
 	"net/http"
 
 	"github.com/ory/hydra-client-go/client/admin"
@@ -9,7 +9,8 @@ import (
 )
 
 type loginHandler struct {
-	client admin.ClientService
+	client   admin.ClientService
+	template *template.Template
 }
 
 func (h loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,6 +37,9 @@ func (h loginHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		http.Redirect(w, r, *accept.Payload.RedirectTo, http.StatusSeeOther)
 	} else {
-		fmt.Fprintf(w, "Login!")
+		err := h.template.ExecuteTemplate(w, "login.html", struct{}{})
+		if err != nil {
+			http.Error(w, "Internal server error (template)", http.StatusInternalServerError)
+		}
 	}
 }

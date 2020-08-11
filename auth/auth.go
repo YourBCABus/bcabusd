@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/base64"
 	"fmt"
+	"html/template"
 	"net/http"
 
 	"github.com/go-pg/pg/v9"
@@ -48,6 +49,8 @@ type Config struct {
 	JWTExpiresIn int64
 
 	HydraClient *client.OryHydra
+
+	Template *template.Template
 }
 
 func providerFor(w http.ResponseWriter, r *http.Request, providers map[string]OAuthProvider) (OAuthProvider, string) {
@@ -88,6 +91,6 @@ func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
 		jwtExpiresIn:    config.JWTExpiresIn,
 		jwtCookieName:   jwtCookieName,
 	})
-	router.Handle("/login", loginHandler{config.HydraClient.Admin})
+	router.Handle("/login", loginHandler{config.HydraClient.Admin, config.Template})
 	router.HandleFunc("", index)
 }

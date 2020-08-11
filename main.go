@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,7 +16,6 @@ import (
 	"github.com/YourBCABus/bcabusd/api"
 	"github.com/YourBCABus/bcabusd/auth"
 	"github.com/YourBCABus/bcabusd/db"
-	"github.com/YourBCABus/bcabusd/legacy"
 )
 
 func index(w http.ResponseWriter, req *http.Request) {
@@ -58,6 +58,11 @@ func main() {
 		log.Fatalf("failed to parse Hydra URL: %v\n", err)
 	}
 
+	tmpl, err := template.ParseFiles("auth/login.html")
+	if err != nil {
+		panic(err)
+	}
+
 	authRouter := router.PathPrefix("/auth").Subrouter()
 	auth.ApplyRoutes(authRouter, db, auth.Config{
 		Providers: map[string]auth.OAuthProvider{
@@ -69,14 +74,16 @@ func main() {
 		},
 		JWTSecret:   []byte(os.Getenv("JWT_SECRET")),
 		HydraClient: client.NewHTTPClientWithConfig(nil, &client.TransportConfig{Schemes: []string{adminURL.Scheme}, Host: adminURL.Host, BasePath: adminURL.Path}),
+		Template:    tmpl,
 	})
+
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	router.Handle("/api", handler.New(&handler.Config{
 		Schema:   &schema,
 		Pretty:   true,
 		GraphiQL: true,
 	}))
-	router.PathPrefix("/schools").Handler(legacy.Handler())
 	router.HandleFunc("/teapot", teapot)
 	router.HandleFunc("/", index)
 
