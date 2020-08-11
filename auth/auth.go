@@ -51,6 +51,10 @@ type Config struct {
 	HydraClient *client.OryHydra
 
 	Template *template.Template
+
+	Remember bool
+
+	RememberFor int64
 }
 
 func providerFor(w http.ResponseWriter, r *http.Request, providers map[string]OAuthProvider) (OAuthProvider, string) {
@@ -77,20 +81,18 @@ func stateCookieName(providerName string) string {
 // ApplyRoutes applies authentication-related routes
 // to a given router using a given database.
 func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
-	audience := "bcabusd-internal"
-	jwtCookieName := "bcabusdauthtoken"
+	audience := "bcabusd-internal-auth"
 
-	router.Handle("/redirect", redirectHandler{providers: config.Providers, stateMaxAge: config.StateMaxAge, stateLength: config.StateLength})
+	router.Handle("/redirect", redirectHandler{providers: config.Providers, stateMaxAge: config.StateMaxAge, stateLength: config.StateLength, jwtSecret: config.JWTSecret, jwtAudience: audience})
 	router.Handle("/callback", callbackHandler{
-		checkState:      config.StateLength >= 0,
-		providers:       config.Providers,
-		userTokenLength: config.UserTokenLength,
-		db:              db,
-		jwtSecret:       config.JWTSecret,
-		jwtAudience:     audience,
-		jwtExpiresIn:    config.JWTExpiresIn,
-		jwtCookieName:   jwtCookieName,
+		providers:   config.Providers,
+		db:          db,
+		jwtSecret:   config.JWTSecret,
+		jwtAudience: audience,
+		hydraClient: config.HydraClient.Admin,
+		remember:    config.Remember,
+		rememberFor: config.RememberFor,
 	})
-	router.Handle("/login", loginHandler{config.HydraClient.Admin, config.Template})
+	router.Handle("/login", loginHandler{config.HydraClient.Admin, config.Template, config.Remember, config.RememberFor})
 	router.HandleFunc("", index)
 }

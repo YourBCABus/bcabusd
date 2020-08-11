@@ -3,24 +3,23 @@ package auth
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-pg/pg/v9"
+	"github.com/ory/hydra-client-go/client/admin"
+	"github.com/ory/hydra-client-go/models"
 
 	"github.com/YourBCABus/bcabusd/db"
 )
 
 type callbackHandler struct {
-	checkState      bool
-	providers       map[string]OAuthProvider
-	db              *pg.DB
-	userTokenLength int
-	jwtSecret       []byte
-	jwtExpiresIn    int64
-	jwtAudience     string
-	jwtCookieName   string
-	jwtCookieMaxAge int
+	providers   map[string]OAuthProvider
+	db          *pg.DB
+	jwtSecret   []byte
+	jwtAudience string
+	hydraClient admin.ClientService
+	remember    bool
+	rememberFor int64
 }
 
 func (h callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -29,13 +28,27 @@ func (h callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.checkState {
-		cookie, _ := r.Cookie(stateCookieName(providerName))
-		if cookie == nil || r.URL.Query().Get("state") != cookie.Value {
-			http.Error(w, "Bad state", http.StatusBadRequest)
-			return
-		}
+	cookie, _ := r.Cookie(stateCookieName(providerName))
+	state := r.URL.Query().Get("state")
+	if cookie == nil || state != cookie.Value {
+		http.Error(w, "Bad state", http.StatusBadRequest)
+		return
 	}
+
+	stateToken, err := jwt.ParseWithClaims(state, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return h.jwtSecret, nil
+	})
+
+	if err != nil || !stateToken.Claims.(*jwt.StandardClaims).VerifyAudience(h.jwtAudience+"-"+providerName, true) {
+		http.Error(w, "Bad state token", http.StatusBadRequest)
+		return
+	}
+
+	challenge := stateToken.Claims.(*jwt.StandardClaims).Subject
 
 	config, err := provider.Config(r.Context())
 	if err != nil {
@@ -51,11 +64,7 @@ func (h callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	id, err := provider.Authenticate(r.Context(), token, h.db, func(meta db.Meta) (string, error) {
 		user := db.User{IsBot: false, Meta: meta}
-		tokenLength := h.userTokenLength
-		if tokenLength == 0 {
-			tokenLength = 24
-		}
-		_, err := h.db.Model(&user).Value("user_token", fmt.Sprintf("gen_random_bytes(%d)", tokenLength)).Returning("id").Insert()
+		_, err := h.db.Model(&user).Returning("id").Insert()
 		if err != nil {
 			return "", err
 		}
@@ -71,30 +80,19 @@ func (h callbackHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := db.User{ID: id}
-	if err := h.db.Model(&user).Column("user_token").Where("id = ?id").Select(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	if challenge != "" {
+		accept, err := h.hydraClient.AcceptLoginRequest(&admin.AcceptLoginRequestParams{LoginChallenge: challenge, Context: r.Context(), Body: &models.AcceptLoginRequest{
+			Subject:     &id,
+			Remember:    h.remember,
+			RememberFor: h.rememberFor,
+		}})
+		if err != nil {
+			http.Error(w, "Internal auth server error", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, *accept.Payload.RedirectTo, http.StatusSeeOther)
+	} else {
+		fmt.Fprintf(w, "Done! Logged in as user %v", id)
 	}
-
-	expiresIn := h.jwtExpiresIn
-	if expiresIn == 0 {
-		expiresIn = 3600
-	}
-
-	now := time.Now().Unix()
-
-	userToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.StandardClaims{
-		ExpiresAt: now + expiresIn,
-		Audience:  h.jwtAudience,
-		NotBefore: now,
-		Subject:   Base64Encoding.EncodeToString(user.UserToken),
-	}).SignedString(h.jwtSecret)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	http.SetCookie(w, &http.Cookie{Name: h.jwtCookieName, Value: userToken, Path: "/auth", MaxAge: h.jwtCookieMaxAge})
-	fmt.Fprintf(w, "Done! Logged in as user %v", id)
 }

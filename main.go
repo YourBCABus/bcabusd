@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/graphql-go/handler"
@@ -63,6 +64,8 @@ func main() {
 		panic(err)
 	}
 
+	rememberFor, _ := strconv.ParseInt(os.Getenv("HYDRA_REMEMBER"), 10, 64)
+
 	authRouter := router.PathPrefix("/auth").Subrouter()
 	auth.ApplyRoutes(authRouter, db, auth.Config{
 		Providers: map[string]auth.OAuthProvider{
@@ -75,6 +78,8 @@ func main() {
 		JWTSecret:   []byte(os.Getenv("JWT_SECRET")),
 		HydraClient: client.NewHTTPClientWithConfig(nil, &client.TransportConfig{Schemes: []string{adminURL.Scheme}, Host: adminURL.Host, BasePath: adminURL.Path}),
 		Template:    tmpl,
+		Remember:    os.Getenv("HYDRA_REMEMBER") != "",
+		RememberFor: rememberFor,
 	})
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
