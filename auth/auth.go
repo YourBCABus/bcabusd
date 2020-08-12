@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/gorilla/csrf"
 	"html/template"
 	"net/http"
 
@@ -55,6 +56,12 @@ type Config struct {
 	Remember bool
 
 	RememberFor int64
+
+	RememberConsent bool
+
+	RememberConsentFor int64
+
+	ConsentCSRFSecret []byte
 }
 
 func providerFor(w http.ResponseWriter, r *http.Request, providers map[string]OAuthProvider) (OAuthProvider, string) {
@@ -94,5 +101,6 @@ func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
 		rememberFor: config.RememberFor,
 	})
 	router.Handle("/login", loginHandler{config.HydraClient.Admin, config.Template, config.Remember, config.RememberFor})
+	router.Handle("/consent", csrf.Protect(config.ConsentCSRFSecret)(consentHandler{config.HydraClient.Admin, config.Template, config.RememberConsent, config.RememberConsentFor}))
 	router.HandleFunc("", index)
 }

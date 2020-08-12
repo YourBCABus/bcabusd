@@ -59,7 +59,7 @@ func main() {
 		log.Fatalf("failed to parse Hydra URL: %v\n", err)
 	}
 
-	tmpl, err := template.ParseFiles("auth/login.html")
+	tmpl, err := template.ParseFiles("auth/login.html", "auth/consent.html")
 	if err != nil {
 		panic(err)
 	}
@@ -75,11 +75,13 @@ func main() {
 				RedirectURI:  os.Getenv("GOOGLE_REDIRECT_URI"),
 			},
 		},
-		JWTSecret:   []byte(os.Getenv("JWT_SECRET")),
-		HydraClient: client.NewHTTPClientWithConfig(nil, &client.TransportConfig{Schemes: []string{adminURL.Scheme}, Host: adminURL.Host, BasePath: adminURL.Path}),
-		Template:    tmpl,
-		Remember:    os.Getenv("HYDRA_REMEMBER") != "",
-		RememberFor: rememberFor,
+		JWTSecret:         []byte(os.Getenv("JWT_SECRET")),
+		ConsentCSRFSecret: []byte(os.Getenv("CONSENT_CSRF_SECRET")),
+		HydraClient:       client.NewHTTPClientWithConfig(nil, &client.TransportConfig{Schemes: []string{adminURL.Scheme}, Host: adminURL.Host, BasePath: adminURL.Path}),
+		Template:          tmpl,
+		Remember:          os.Getenv("HYDRA_REMEMBER") != "",
+		RememberFor:       rememberFor,
+		RememberConsent:   true,
 	})
 
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
