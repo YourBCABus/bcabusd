@@ -48,6 +48,14 @@ type Config struct {
 
 	JWTExpiresIn int64
 
+	UserJWTSecret []byte
+
+	UserJWTAudience string
+
+	UserJWTExpiresIn int64
+
+	UserJWTCookie string
+
 	HydraClient *client.OryHydra
 
 	Template *template.Template
@@ -85,13 +93,17 @@ func ApplyRoutes(router *mux.Router, db *pg.DB, config Config) {
 
 	router.Handle("/redirect", redirectHandler{providers: config.Providers, stateMaxAge: config.StateMaxAge, stateLength: config.StateLength, jwtSecret: config.JWTSecret, jwtAudience: audience})
 	router.Handle("/callback", callbackHandler{
-		providers:   config.Providers,
-		db:          db,
-		jwtSecret:   config.JWTSecret,
-		jwtAudience: audience,
-		hydraClient: config.HydraClient.Admin,
-		remember:    config.Remember,
-		rememberFor: config.RememberFor,
+		providers:        config.Providers,
+		db:               db,
+		jwtSecret:        config.JWTSecret,
+		jwtAudience:      audience,
+		hydraClient:      config.HydraClient.Admin,
+		remember:         config.Remember,
+		rememberFor:      config.RememberFor,
+		userJWTSecret:    config.UserJWTSecret,
+		userJWTAudience:  config.UserJWTAudience,
+		userJWTExpiresIn: config.UserJWTExpiresIn,
+		userJWTCookie:    config.UserJWTCookie,
 	})
 	router.Handle("/login", loginHandler{config.HydraClient.Admin, config.Template, config.Remember, config.RememberFor})
 	router.HandleFunc("", index)
